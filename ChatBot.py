@@ -272,6 +272,6 @@ root = tk.Tk()
 app = BubbleChatApp(root)
 
 root.mainloop()
-=======
+
 root.mainloop()
 files = None
