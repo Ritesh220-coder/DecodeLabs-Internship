@@ -1,0 +1,168 @@
+import tkinter as tk
+from tkinter import ttk, messagebox
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+ITEMS = [
+    {"title": "Python for Data Analysis", "tags": "python data analysis pandas visualization beginner"},
+    {"title": "Machine Learning Basics", "tags": "python machine learning statistics scikit-learn beginner"},
+    {"title": "Deep Learning with TensorFlow", "tags": "python deep learning tensorflow neural networks advanced"},
+    {"title": "Frontend Web Development", "tags": "html css javascript ui design beginner"},
+    {"title": "Backend Development with Django", "tags": "python django backend web development intermediate"},
+    {"title": "Android App Development", "tags": "java kotlin android mobile development intermediate"},
+    {"title": "Cloud Computing Essentials", "tags": "cloud aws devops deployment intermediate"},
+    {"title": "Data Structures and Algorithms", "tags": "c++ algorithms problem solving data structures intermediate"},
+    {"title": "Cyber Security Fundamentals", "tags": "security networking encryption risk analysis intermediate"},
+    {"title": "UI/UX Design Basics", "tags": "ui ux design wireframe prototyping creativity beginner"},
+]
+
+CATEGORY_MAP = {
+    "python": "python",
+    "data": "data analysis",
+    "analysis": "data analysis",
+    "machine": "machine learning",
+    "learning": "machine learning",
+    "ai": "machine learning",
+    "deep": "deep learning",
+    "tensorflow": "deep learning",
+    "web": "web development",
+    "frontend": "web development",
+    "backend": "backend development",
+    "android": "android development",
+    "mobile": "android development",
+    "cloud": "cloud computing",
+    "security": "cyber security",
+    "cyber": "cyber security",
+    "ui": "ui ux design",
+    "ux": "ui ux design",
+    "design": "ui ux design",
+    "algorithm": "data structures and algorithms",
+    "algorithms": "data structures and algorithms",
+    "c++": "data structures and algorithms",
+    "Food": "pasta , noodles , pizza ,  biryani , rice , curry , bread , sandwich , burger , steak , seafood , soup , salad , sushi , tacos , burrito , wrap , hot dog , sausage , kebab , gyro , spring roll , samosa , dumpling , ravioli , gnocchi , polenta , risotto , paella , fondue , charcuterie"
+}
+
+def build_model(items):
+    corpus = [item["tags"] + " " + item["title"].lower() for item in items]
+    vectorizer = TfidfVectorizer(ngram_range=(1, 2), stop_words="english")
+    matrix = vectorizer.fit_transform(corpus)
+    return vectorizer, matrix
+
+VECTORizer, ITEM_MATRIX = build_model(ITEMS)
+
+def enrich_user_text(text):
+    words = text.lower().replace(",", " ").split()
+    mapped = [CATEGORY_MAP.get(w, w) for w in words]
+    return " ".join(mapped)
+
+def recommend(user_input, top_n=5):
+    enriched = enrich_user_text(user_input)
+    user_vec = VECTORizer.transform([enriched])
+    scores = cosine_similarity(user_vec, ITEM_MATRIX).flatten()
+    ranked = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)
+    results = []
+    for idx, score in ranked[:top_n]:
+        item = ITEMS[idx]
+        results.append((item["title"], float(score), item["tags"]))
+    return results
+
+def show_recommendations():
+    user_input = entry.get().strip()
+    if not user_input:
+        messagebox.showwarning("Input Needed", "Please enter your interests or preferences.")
+        return
+
+    results = recommend(user_input, top_n=5)
+    output_text.config(state="normal")
+    output_text.delete("1.0", tk.END)
+
+    if not results or results[0][1] == 0:
+        output_text.insert(tk.END, "No strong match found. Try keywords like: python, machine learning, android, web, cloud, design.\n")
+    else:
+        for i, (title, score, tags) in enumerate(results, 1):
+            output_text.insert(
+                tk.END,
+                f"{i}. {title}\n   Match Score: {score:.3f}\n   Tags: {tags}\n\n"
+            )
+
+    output_text.config(state="disabled")
+
+def clear_all():
+    entry.delete(0, tk.END)
+    output_text.config(state="normal")
+    output_text.delete("1.0", tk.END)
+    output_text.config(state="disabled")
+
+root = tk.Tk()
+root.title("AI Recommendation - Project 3")
+root.geometry("820x620")
+root.minsize(820, 620)
+
+style = ttk.Style()
+style.theme_use("clam")
+style.configure("TFrame", background="#f5f7fb")
+style.configure("TLabel", background="#f5f7fb", font=("Segoe UI", 11))
+style.configure("Title.TLabel", font=("Segoe UI", 20, "bold"), foreground="#1f2937", background="#f5f7fb")
+style.configure("Sub.TLabel", font=("Segoe UI", 10), foreground="#4b5563", background="#f5f7fb")
+style.configure("TButton", font=("Segoe UI", 10, "bold"), padding=8)
+style.configure("TEntry", padding=8)
+
+main = ttk.Frame(root, padding=20)
+main.pack(fill="both", expand=True)
+
+title = ttk.Label(main, text="AI Recommendations", style="Title.TLabel")
+title.pack(anchor="w")
+
+subtitle = ttk.Label(
+    main,
+    text="Enter your interests and get personalized recommendations.",
+    style="Sub.TLabel",
+)
+subtitle.pack(anchor="w", pady=(4, 14))
+
+input_frame = ttk.LabelFrame(main, text="User Preferences", padding=14)
+input_frame.pack(fill="x", pady=(0, 14))
+
+entry = ttk.Entry(input_frame, font=("Segoe UI", 11))
+entry.pack(fill="x", pady=(0, 10))
+entry.insert(0, "python, machine learning, data analysis")
+
+hint = ttk.Label(
+    input_frame,
+    text="Example keywords: python, machine learning, android, web development, cloud, design",
+    style="Sub.TLabel",
+)
+hint.pack(anchor="w")
+
+button_frame = ttk.Frame(main)
+button_frame.pack(fill="x", pady=(0, 14))
+
+recommend_btn = ttk.Button(button_frame, text="Get Recommendations", command=show_recommendations)
+recommend_btn.pack(side="left")
+
+clear_btn = ttk.Button(button_frame, text="Clear", command=clear_all)
+clear_btn.pack(side="left", padx=10)
+
+result_frame = ttk.LabelFrame(main, text="Recommended Items", padding=14)
+result_frame.pack(fill="both", expand=True)
+
+output_text = tk.Text(
+    result_frame,
+    wrap="word",
+    height=20,
+    font=("Segoe UI", 11),
+    bg="white",
+    fg="#111827",
+    relief="flat",
+    padx=10,
+    pady=10,
+)
+output_text.pack(fill="both", expand=True)
+output_text.config(state="disabled")
+
+scrollbar = ttk.Scrollbar(output_text, command=output_text.yview)
+output_text.configure(yscrollcommand=scrollbar.set)
+scrollbar.pack(side="right", fill="y")
+
+root.bind("<Return>", lambda event: show_recommendations())
+root.mainloop()
